@@ -65,5 +65,5 @@ steps:
     command: 'push'
     packagesToPush: '$(Build.StagingDirectory)/*.nupkg;!$(Build.StagingDirectory)/*.symbols.nupkg'
     nuGetFeedType: 'internal'
-    publishVstsFeed: '/feeea873-be5b-477a-a731-ddd23cb588f6'
+    publishVstsFeed: '/ce0f3311-c3c5-4df1-b81a-19bd048c0314'
     allowPackageConflicts: true
