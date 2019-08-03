@@ -40,6 +40,11 @@ steps:
   condition: and(succeeded(), ne(variables['Build.SourceBranch'], 'refs/heads/master')) 
   displayName: 'Replace Version on Linux/Windows on non-master branch'
 
+- task: NuGetToolInstaller@1
+  inputs:
+    versionSpec: '5.1.0'
+    checkLatest: true
+
 - task: NuGetCommand@2
   inputs:
     command: 'restore'
