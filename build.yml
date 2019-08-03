@@ -1,0 +1,69 @@
+name: 'Cross.Persistence.Core.$(major).$(minor).$(iteration).$(Build.BuildId)'
+
+pool:
+  vmImage: 'windows-2019'
+
+variables:
+  buildConfiguration: 'Release'
+  major: '0'
+  minor: '5'
+  iteration: '0'
+
+steps:
+- task: RegExMatchReplace@2
+  inputs:
+    PathToFile: '$(Build.SourcesDirectory)/src/$(Build.Repository.Name)/$(Build.Repository.Name).csproj'
+    RegEx: '\<AssemblyVersion\>.*\<\/AssemblyVersion\>'
+    ValueToReplace: '<AssemblyVersion>$(major).$(minor).$(iteration).$(Build.BuildId)</AssemblyVersion>'
+  displayName: 'Replace AssemblyVersion on Linux/Windows'
+
+- task: RegExMatchReplace@2
+  inputs:
+    PathToFile: '$(Build.SourcesDirectory)/src/$(Build.Repository.Name)/$(Build.Repository.Name).csproj'
+    RegEx: '\<FileVersion\>.*\<\/FileVersion\>'
+    ValueToReplace: '<FileVersion>$(major).$(minor).$(iteration).$(Build.BuildId)</FileVersion>'
+  displayName: 'Replace FileVersion on Linux/Windows'
+
+- task: RegExMatchReplace@2
+  inputs:
+    PathToFile: '$(Build.SourcesDirectory)/src/$(Build.Repository.Name)/$(Build.Repository.Name).csproj'
+    RegEx: '\<Version\>.*\<\/Version\>'
+    ValueToReplace: '<Version>$(major).$(minor).$(iteration)</Version>'
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master')) 
+  displayName: 'Replace Version on Linux/Windows on master builds'
+
+- task: RegExMatchReplace@2
+  inputs:
+    PathToFile: '$(Build.SourcesDirectory)/src/$(Build.Repository.Name)/$(Build.Repository.Name).csproj'
+    RegEx: '\<Version\>.*\<\/Version\>'
+    ValueToReplace: '<Version>$(major).$(minor).$(iteration)-$(Build.SourceBranchName)</Version>'
+  condition: and(succeeded(), ne(variables['Build.SourceBranch'], 'refs/heads/master')) 
+  displayName: 'Replace Version on Linux/Windows on non-master branch'
+
+- script: dotnet build --configuration $(buildConfiguration)
+  displayName: 'dotnet build $(buildConfiguration)'
+  
+- task: DotNetCoreCLI@2
+  inputs:
+    command: 'test'
+    projects: '$(Build.SourcesDirectory)/test/$(Build.Repository.Name).Tests/*.csproj'
+    arguments: '--configuration $(buildConfiguration) --collect "Code coverage"'
+  displayName: 'Test the built binaries.'
+
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)/src/$(Build.Repository.Name)/bin/$(buildConfiguration)'
+    Contents: '*.nupkg'
+    TargetFolder: '$(Build.StagingDirectory)'
+    CleanTargetFolder: true
+    OverWrite: true
+    flattenFolders: true
+    preserveTimestamp: true
+  
+- task: NuGetCommand@2
+  inputs:
+    command: 'push'
+    packagesToPush: '$(Build.StagingDirectory)/*.nupkg;!$(Build.StagingDirectory)/*.symbols.nupkg'
+    nuGetFeedType: 'internal'
+    publishVstsFeed: '/feeea873-be5b-477a-a731-ddd23cb588f6'
+    allowPackageConflicts: true
