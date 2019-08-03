@@ -40,6 +40,13 @@ steps:
   condition: and(succeeded(), ne(variables['Build.SourceBranch'], 'refs/heads/master')) 
   displayName: 'Replace Version on Linux/Windows on non-master branch'
 
+- task: NuGetCommand@2
+  inputs:
+    command: 'restore'
+    restoreSolution: '**/*.sln'
+    feedsToUse: 'select'
+    vstsFeed: 'feeea873-be5b-477a-a731-ddd23cb588f6'
+    
 - script: dotnet build --configuration $(buildConfiguration)
   displayName: 'dotnet build $(buildConfiguration)'
   
