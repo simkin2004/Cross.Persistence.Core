@@ -208,12 +208,20 @@ namespace Cross.Persistence.Core
             return this;
         }
 
-        
+        /// <summary>
+        /// Builds a DELETE command that is ready for execution.
+        /// </summary>
+        /// <returns>A DELETE SQL command.</returns>
         public string BuildDeleteCommand()
         {
             if (string.IsNullOrWhiteSpace(this.TableName))
             {
                 throw new InvalidOperationException("TableName must be specified to build a DELETE command.");
+            }
+
+            if (this.AvailableFields.Count == 0)
+            {
+                throw new InvalidOperationException("AvailableFields must be specified to build an DELETE command.");
             }
 
             var invalidFields = this.ValidateFields(this.Filters.Keys);
@@ -230,7 +238,10 @@ namespace Cross.Persistence.Core
             return result;
         }
         
-        /*
+        /// <summary>
+        /// Builds an INSERT command that is ready for execution.
+        /// </summary>
+        /// <returns>An INSERT SQL command.</returns>
         public string BuildInsertCommand()
         {
             if (string.IsNullOrWhiteSpace(this.TableName))
@@ -246,13 +257,14 @@ namespace Cross.Persistence.Core
             string fieldList = string.Join(", ", this.AvailableFields);
             
             // Transform field names to parameter names.
-            string parameterList = string.Join(", ", this.AvailableFields.Select(x => string.Format(CultureInfo.CurrentCulture, this.ParameterFormat, x)));
+            string parameterList = string.Join(", ", this.AvailableFields.Select(x => string.Format(CultureInfo.CurrentCulture, this.ParameterFormat, x.ToCamelCase())));
 
             string result = string.Format(CultureInfo.CurrentCulture, this.InsertStatementFormat, this.TableName, fieldList, parameterList);
 
             return result;
         }
 
+        /*
         public string BuildSelectCommand()
         {
             if (string.IsNullOrWhiteSpace(this.TableName))

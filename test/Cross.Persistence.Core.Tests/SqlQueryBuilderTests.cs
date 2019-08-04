@@ -108,7 +108,6 @@ namespace Cross.Persistence.Core.Tests
             Assert.AreEqual(expectedSql, result);
         }
 
-
         [TestMethod]
         public void Returns_DeleteSqlStatement_From_BuildDeleteCommand_With_One_Filter()
         {
@@ -122,6 +121,24 @@ namespace Cross.Persistence.Core.Tests
 
             // act
             var result = sqlQueryBuilder.BuildDeleteCommand();
+
+            // assert
+            Assert.AreEqual(expectedSql, result);
+        }
+
+        [TestMethod]
+        public void Returns_InsertSqlStatement_From_BuildInsertCommand()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" });
+
+
+            var expectedSql = "INSERT dbo.Applications (ApplicationID, Description) VALUES(@applicationID, @description);";
+
+            // act
+            var result = sqlQueryBuilder.BuildInsertCommand();
 
             // assert
             Assert.AreEqual(expectedSql, result);
@@ -610,6 +627,23 @@ namespace Cross.Persistence.Core.Tests
         }
 
         [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildDeleteCommand_When_AvailableFields_Are_Not_Set()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                            .AddTableName("dbo.Applications");
+
+            var expectedMessage = "AvailableFields must be specified to build an DELETE command.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildDeleteCommand());
+
+            // assert 
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+
+        [TestMethod]
         public void Throws_InvalidOperationException_From_BuildDeleteCommand_When_Filters_Has_Invalid_Field_Names()
         {
             // arrange
@@ -643,6 +677,41 @@ namespace Cross.Persistence.Core.Tests
             Assert.IsNotNull(result);
             Assert.AreEqual(expectedMessage, result.Message);
         }
+
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildInsertCommand_When_AvailableFields_Are_Not_Set()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                            .AddTableName("dbo.Applications");
+
+            var expectedMessage = "AvailableFields must be specified to build an INSERT command.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildInsertCommand());
+
+            // assert 
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildInsertCommand_When_TableName_Is_Not_Set()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                            .AddAvailableFields(new List<string>() { "ApplicationID", "Description" });
+            var expectedMessage = "TableName must be specified to build an INSERT command.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildInsertCommand());
+
+            // assert 
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+
+
 
     }
 }
