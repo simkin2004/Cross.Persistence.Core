@@ -40,6 +40,18 @@ steps:
   condition: and(succeeded(), ne(variables['Build.SourceBranch'], 'refs/heads/master')) 
   displayName: 'Replace Version on Linux/Windows on non-master branch'
 
+- task: NuGetToolInstaller@1
+  inputs:
+    versionSpec: '5.1.0'
+    checkLatest: true
+
+- task: NuGetCommand@2
+  inputs:
+    command: 'restore'
+    restoreSolution: '**/*.sln'
+    feedsToUse: 'select'
+    vstsFeed: 'feeea873-be5b-477a-a731-ddd23cb588f6'
+    
 - script: dotnet build --configuration $(buildConfiguration)
   displayName: 'dotnet build $(buildConfiguration)'
   
@@ -65,5 +77,5 @@ steps:
     command: 'push'
     packagesToPush: '$(Build.StagingDirectory)/*.nupkg;!$(Build.StagingDirectory)/*.symbols.nupkg'
     nuGetFeedType: 'internal'
-    publishVstsFeed: '/feeea873-be5b-477a-a731-ddd23cb588f6'
+    publishVstsFeed: '/ce0f3311-c3c5-4df1-b81a-19bd048c0314'
     allowPackageConflicts: true
