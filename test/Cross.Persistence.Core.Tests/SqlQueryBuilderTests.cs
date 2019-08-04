@@ -30,6 +30,7 @@ namespace Cross.Persistence.Core.Tests
     using System;
     using System.Collections.Generic;
 
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     [TestClass]
     public class SqlQueryBuilderTests
     {
