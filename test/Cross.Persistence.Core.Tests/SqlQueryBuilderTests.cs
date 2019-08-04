@@ -42,9 +42,11 @@ namespace Cross.Persistence.Core.Tests
             var deleteStatementFormat = "DELETE FROM {0}{1};";
             var endingRowNumberParameterName = "endingRowNumber";
             var filters = new Dictionary<string, object>();
+            var includeOrderByClauseFlag = false;
             var insertStatementFormat = "INSERT INTO {0} ({1}) VALUES ({2});";
             var parameterNameFormat = "@{0}";
-            var selectStatementFormat = "SELECT {1} FROM "
+            var requireSortOrder = true;
+            var selectStatementFormat = "SELECT {1} FROM"
                                         + " (SELECT COUNT() as row_count, ROW_NUMBER() OVER({5}) AS row_no, {1} FROM {0}) as subSelect"
                                         + " WHERE subSelect.row_no >= {3} AND subSelect.row_num < {4}{2};";
             var sortOrder = new Dictionary<string, SortDirection>();
@@ -62,8 +64,10 @@ namespace Cross.Persistence.Core.Tests
             Assert.AreEqual(deleteStatementFormat, result.DeleteStatementFormat);
             Assert.AreEqual(endingRowNumberParameterName, result.EndingRowNumberParameterName);
             Assert.AreEqual(filters.Count, result.Filters.Count);
+            Assert.AreEqual(includeOrderByClauseFlag, result.IncludeOrderByClause);
             Assert.AreEqual(insertStatementFormat, result.InsertStatementFormat);
             Assert.AreEqual(parameterNameFormat, result.ParameterFormat);
+            Assert.AreEqual(requireSortOrder, result.RequireSortOrder);
             Assert.AreEqual(selectStatementFormat, result.SelectStatementFormat);
             Assert.AreEqual(sortOrder.Count, result.SortOrder.Count);
             Assert.AreEqual(startingRowNumberParameterName, result.StartingRowNumberParameterName);
@@ -145,6 +149,107 @@ namespace Cross.Persistence.Core.Tests
         }
 
         [TestMethod]
+        public void Returns_SelectSqlStatement_From_BuildSelectCommand_With_No_Filters()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                         .AddSortOrder(new Dictionary<string, SortDirection>() { { "Description", SortDirection.Ascending } });
+
+
+            var expectedSql = "SELECT ApplicationID, Description FROM"
+                                    + " (SELECT COUNT() as row_count, ROW_NUMBER() OVER(Description ASC) AS row_no, ApplicationID, Description FROM dbo.Applications) as subSelect"
+                                    + " WHERE subSelect.row_no >= @startingRowNumber AND subSelect.row_num < @endingRowNumber;";
+
+            // act
+            var result = sqlQueryBuilder.BuildSelectCommand();
+
+            // assert
+            Assert.AreEqual(expectedSql, result);
+        }
+
+        [TestMethod]
+        public void Returns_SelectSqlStatement_From_BuildSelectCommand_With_Multiple_Filters()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description", "Name", "CreatedBy" })
+                                         .AddFilters(new Dictionary<string, object>() { { "Name", "Trout" }, { "CreatedBy", "goofball@cross-software.us" } })
+                                         .AddSortOrder(new Dictionary<string, SortDirection>() { { "Description", SortDirection.Ascending } });
+
+
+            var expectedSql = "SELECT ApplicationID, Description, Name, CreatedBy FROM"
+                                    + " (SELECT COUNT() as row_count, ROW_NUMBER() OVER(Description ASC) AS row_no, ApplicationID, Description, Name, CreatedBy FROM dbo.Applications) as subSelect"
+                                    + " WHERE subSelect.row_no >= @startingRowNumber AND subSelect.row_num < @endingRowNumber"
+                                    + " AND Name = @name AND CreatedBy = @createdBy;";
+
+            // act
+            var result = sqlQueryBuilder.BuildSelectCommand();
+
+            // assert
+            Assert.AreEqual(expectedSql, result);
+        }
+
+        public void Returns_SelectSqlStatement_From_SampleSqlQueryBuilder_BuildSelectCommand_Without_Filters_Or_SortOrder_Specified()
+        {
+            // arrange
+            var sqlQueryBuilder = new SampleSqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" });
+
+            var expectedSql = "SELECT COUNT() as row_count, ApplicationID, Description FROM dbo.Applications"
+                                    + " WHERE row_no >= @startingRowNumber AND row_no < @endingRowNumber;";
+
+            // act
+            var result = sqlQueryBuilder.BuildSelectCommand();
+
+            // assert
+            Assert.AreEqual(expectedSql, result);
+        }
+
+        [TestMethod]
+        public void Returns_SelectSqlStatement_From_SampleSqlQueryBuilder_BuildSelectCommand_With_SortOrder_Specified()
+        {
+            // arrange
+            var sqlQueryBuilder = new SampleSqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                         .AddFilters(new Dictionary<string, object>() { { "Description", "Name" } })
+                                         .AddSortOrder(new Dictionary<string, SortDirection>() { { "Description", SortDirection.Descending } });
+
+            var expectedSql = "SELECT COUNT() as row_count, ApplicationID, Description FROM dbo.Applications"
+                                    + " WHERE row_no >= @startingRowNumber AND row_no < @endingRowNumber AND Description = @description"
+                                    + " ORDER BY Description DESC;";
+
+            // act
+            var result = sqlQueryBuilder.BuildSelectCommand();
+
+            // assert
+            Assert.AreEqual(expectedSql, result);
+        }
+
+        [TestMethod]
+        public void Returns_SelectSqlStatement_From_SampleSqlQueryBuilder_BuildSelectCommand_Without_SortOrder_Specified()
+        {
+            // arrange
+            var sqlQueryBuilder = new SampleSqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                         .AddFilters(new Dictionary<string, object>() { { "Description", "Name" } });
+
+            var expectedSql = "SELECT COUNT() as row_count, ApplicationID, Description FROM dbo.Applications"
+                                    + " WHERE row_no >= @startingRowNumber AND row_no < @endingRowNumber AND Description = @description;";
+
+            // act
+            var result = sqlQueryBuilder.BuildSelectCommand();
+
+            // assert
+            Assert.AreEqual(expectedSql, result);
+        }
+
+        [TestMethod]
         public void Returns_SqlQueryBuilder_Instance_From_AddAvailableFields_When_Value_Provided()
         {
             // arrange
@@ -154,8 +259,10 @@ namespace Cross.Persistence.Core.Tests
             var endingRowNumberParameterName = "endingRowNumber";
             var filters = new Dictionary<string, object>();
             var insertStatementFormat = "INSERT INTO {0} ({1}) VALUES ({2});";
+            var includeOrderByClauseFlag = false;
             var parameterNameFormat = "@{0}";
-            var selectStatementFormat = "SELECT {1} FROM "
+            var requireSortOrder = true;
+            var selectStatementFormat = "SELECT {1} FROM"
                                         + " (SELECT COUNT() as row_count, ROW_NUMBER() OVER({5}) AS row_no, {1} FROM {0}) as subSelect"
                                         + " WHERE subSelect.row_no >= {3} AND subSelect.row_num < {4}{2};";
             var sortOrder = new Dictionary<string, SortDirection>();
@@ -173,8 +280,10 @@ namespace Cross.Persistence.Core.Tests
             Assert.AreEqual(deleteStatementFormat, result.DeleteStatementFormat);
             Assert.AreEqual(endingRowNumberParameterName, result.EndingRowNumberParameterName);
             Assert.AreEqual(filters.Count, result.Filters.Count);
+            Assert.AreEqual(includeOrderByClauseFlag, result.IncludeOrderByClause);
             Assert.AreEqual(insertStatementFormat, result.InsertStatementFormat);
             Assert.AreEqual(parameterNameFormat, result.ParameterFormat);
+            Assert.AreEqual(requireSortOrder, result.RequireSortOrder);
             Assert.AreEqual(selectStatementFormat, result.SelectStatementFormat);
             Assert.AreEqual(sortOrder.Count, result.SortOrder.Count);
             Assert.AreEqual(startingRowNumberParameterName, result.StartingRowNumberParameterName);
@@ -193,8 +302,10 @@ namespace Cross.Persistence.Core.Tests
             var endingRowNumberParameterName = "lastNumber";
             var filters = new Dictionary<string, object>();
             var insertStatementFormat = "INSERT INTO {0} ({1}) VALUES ({2});";
+            var includeOrderByClauseFlag = false;
             var parameterNameFormat = "@{0}";
-            var selectStatementFormat = "SELECT {1} FROM "
+            var requireSortOrder = true;
+            var selectStatementFormat = "SELECT {1} FROM"
                                         + " (SELECT COUNT() as row_count, ROW_NUMBER() OVER({5}) AS row_no, {1} FROM {0}) as subSelect"
                                         + " WHERE subSelect.row_no >= {3} AND subSelect.row_num < {4}{2};";
             var sortOrder = new Dictionary<string, SortDirection>();
@@ -212,8 +323,10 @@ namespace Cross.Persistence.Core.Tests
             Assert.AreEqual(deleteStatementFormat, result.DeleteStatementFormat);
             Assert.AreEqual(endingRowNumberParameterName, result.EndingRowNumberParameterName);
             Assert.AreEqual(filters.Count, result.Filters.Count);
+            Assert.AreEqual(includeOrderByClauseFlag, result.IncludeOrderByClause);
             Assert.AreEqual(insertStatementFormat, result.InsertStatementFormat);
             Assert.AreEqual(parameterNameFormat, result.ParameterFormat);
+            Assert.AreEqual(requireSortOrder, result.RequireSortOrder);
             Assert.AreEqual(selectStatementFormat, result.SelectStatementFormat);
             Assert.AreEqual(sortOrder.Count, result.SortOrder.Count);
             Assert.AreEqual(startingRowNumberParameterName, result.StartingRowNumberParameterName);
@@ -230,10 +343,12 @@ namespace Cross.Persistence.Core.Tests
             var availableFields = new List<string>();
             var deleteStatementFormat = "DELETE FROM {0}{1};";
             var endingRowNumberParameterName = "endingRowNumber";
-            var filters = new Dictionary<string, object>() { {"applicationID", Guid.NewGuid() }};
+            var filters = new Dictionary<string, object>() { {"applicationID", Guid.NewGuid() }};            
+            var includeOrderByClauseFlag = false;
             var insertStatementFormat = "INSERT INTO {0} ({1}) VALUES ({2});";
             var parameterNameFormat = "@{0}";
-            var selectStatementFormat = "SELECT {1} FROM "
+            var requireSortOrder = true;
+            var selectStatementFormat = "SELECT {1} FROM"
                                         + " (SELECT COUNT() as row_count, ROW_NUMBER() OVER({5}) AS row_no, {1} FROM {0}) as subSelect"
                                         + " WHERE subSelect.row_no >= {3} AND subSelect.row_num < {4}{2};";
             var sortOrder = new Dictionary<string, SortDirection>();
@@ -252,8 +367,10 @@ namespace Cross.Persistence.Core.Tests
             Assert.AreEqual(endingRowNumberParameterName, result.EndingRowNumberParameterName);
             Assert.AreEqual(filters.Count, result.Filters.Count);
             Assert.AreEqual(filters["applicationID"], result.Filters["applicationID"]);
+            Assert.AreEqual(includeOrderByClauseFlag, result.IncludeOrderByClause);
             Assert.AreEqual(insertStatementFormat, result.InsertStatementFormat);
             Assert.AreEqual(parameterNameFormat, result.ParameterFormat);
+            Assert.AreEqual(requireSortOrder, result.RequireSortOrder);
             Assert.AreEqual(selectStatementFormat, result.SelectStatementFormat);
             Assert.AreEqual(sortOrder.Count, result.SortOrder.Count);
             Assert.AreEqual(startingRowNumberParameterName, result.StartingRowNumberParameterName);
@@ -271,9 +388,11 @@ namespace Cross.Persistence.Core.Tests
             var deleteStatementFormat = "DELETE FROM {0}{1};";
             var endingRowNumberParameterName = "endingRowNumber";
             var filters = new Dictionary<string, object>();
+            var includeOrderByClauseFlag = false;
             var insertStatementFormat = "INSERT INTO {0} ({1}) VALUES ({2});";
             var parameterNameFormat = "@{0}";
-            var selectStatementFormat = "SELECT {1} FROM "
+            var requireSortOrder = true;
+            var selectStatementFormat = "SELECT {1} FROM"
                                         + " (SELECT COUNT() as row_count, ROW_NUMBER() OVER({5}) AS row_no, {1} FROM {0}) as subSelect"
                                         + " WHERE subSelect.row_no >= {3} AND subSelect.row_num < {4}{2};";
             var sortOrder = new Dictionary<string, SortDirection>() { { "applicationID", SortDirection.Ascending } };
@@ -291,8 +410,10 @@ namespace Cross.Persistence.Core.Tests
             Assert.AreEqual(deleteStatementFormat, result.DeleteStatementFormat);
             Assert.AreEqual(endingRowNumberParameterName, result.EndingRowNumberParameterName);
             Assert.AreEqual(filters.Count, result.Filters.Count);
+            Assert.AreEqual(includeOrderByClauseFlag, result.IncludeOrderByClause);
             Assert.AreEqual(insertStatementFormat, result.InsertStatementFormat);
             Assert.AreEqual(parameterNameFormat, result.ParameterFormat);
+            Assert.AreEqual(requireSortOrder, result.RequireSortOrder);
             Assert.AreEqual(selectStatementFormat, result.SelectStatementFormat);
             Assert.AreEqual(sortOrder.Count, result.SortOrder.Count);
             Assert.AreEqual(sortOrder["applicationID"], result.SortOrder["applicationID"]);
@@ -311,9 +432,11 @@ namespace Cross.Persistence.Core.Tests
             var deleteStatementFormat = "DELETE FROM {0}{1};";
             var endingRowNumberParameterName = "endingRowNumber";
             var filters = new Dictionary<string, object>();
+            var includeOrderByClauseFlag = false;
             var insertStatementFormat = "INSERT INTO {0} ({1}) VALUES ({2});";
             var parameterNameFormat = "@{0}";
-            var selectStatementFormat = "SELECT {1} FROM "
+            var requireSortOrder = true;
+            var selectStatementFormat = "SELECT {1} FROM"
                                         + " (SELECT COUNT() as row_count, ROW_NUMBER() OVER({5}) AS row_no, {1} FROM {0}) as subSelect"
                                         + " WHERE subSelect.row_no >= {3} AND subSelect.row_num < {4}{2};";
             var sortOrder = new Dictionary<string, SortDirection>();
@@ -331,8 +454,10 @@ namespace Cross.Persistence.Core.Tests
             Assert.AreEqual(deleteStatementFormat, result.DeleteStatementFormat);
             Assert.AreEqual(endingRowNumberParameterName, result.EndingRowNumberParameterName);
             Assert.AreEqual(filters.Count, result.Filters.Count);
+            Assert.AreEqual(includeOrderByClauseFlag, result.IncludeOrderByClause);
             Assert.AreEqual(insertStatementFormat, result.InsertStatementFormat);
             Assert.AreEqual(parameterNameFormat, result.ParameterFormat);
+            Assert.AreEqual(requireSortOrder, result.RequireSortOrder);
             Assert.AreEqual(selectStatementFormat, result.SelectStatementFormat);
             Assert.AreEqual(sortOrder.Count, result.SortOrder.Count);
             Assert.AreEqual(startingRowNumberParameterName, result.StartingRowNumberParameterName);
@@ -350,9 +475,11 @@ namespace Cross.Persistence.Core.Tests
             var deleteStatementFormat = "DELETE FROM {0}{1};";
             var endingRowNumberParameterName = "endingRowNumber";
             var filters = new Dictionary<string, object>();
+            var includeOrderByClauseFlag = false;
             var insertStatementFormat = "INSERT INTO {0} ({1}) VALUES ({2});";
             var parameterNameFormat = "@{0}";
-            var selectStatementFormat = "SELECT {1} FROM "
+            var requireSortOrder = true;
+            var selectStatementFormat = "SELECT {1} FROM"
                                         + " (SELECT COUNT() as row_count, ROW_NUMBER() OVER({5}) AS row_no, {1} FROM {0}) as subSelect"
                                         + " WHERE subSelect.row_no >= {3} AND subSelect.row_num < {4}{2};";
             var sortOrder = new Dictionary<string, SortDirection>();
@@ -370,8 +497,10 @@ namespace Cross.Persistence.Core.Tests
             Assert.AreEqual(deleteStatementFormat, result.DeleteStatementFormat);
             Assert.AreEqual(endingRowNumberParameterName, result.EndingRowNumberParameterName);
             Assert.AreEqual(filters.Count, result.Filters.Count);
+            Assert.AreEqual(includeOrderByClauseFlag, result.IncludeOrderByClause);
             Assert.AreEqual(insertStatementFormat, result.InsertStatementFormat);
             Assert.AreEqual(parameterNameFormat, result.ParameterFormat);
+            Assert.AreEqual(requireSortOrder, result.RequireSortOrder);
             Assert.AreEqual(selectStatementFormat, result.SelectStatementFormat);
             Assert.AreEqual(sortOrder.Count, result.SortOrder.Count);
             Assert.AreEqual(startingRowNumberParameterName, result.StartingRowNumberParameterName);
@@ -389,9 +518,11 @@ namespace Cross.Persistence.Core.Tests
             var deleteStatementFormat = "DELETE FROM {0}{1};";
             var endingRowNumberParameterName = "endingRowNumber";
             var filters = new Dictionary<string, object>();
+            var includeOrderByClauseFlag = false;
             var insertStatementFormat = "INSERT INTO {0} ({1}) VALUES ({2});";
             var parameterNameFormat = "@{0}";
-            var selectStatementFormat = "SELECT {1} FROM "
+            var requireSortOrder = true;
+            var selectStatementFormat = "SELECT {1} FROM"
                                         + " (SELECT COUNT() as row_count, ROW_NUMBER() OVER({5}) AS row_no, {1} FROM {0}) as subSelect"
                                         + " WHERE subSelect.row_no >= {3} AND subSelect.row_num < {4}{2};";
             var sortOrder = new Dictionary<string, SortDirection>();
@@ -409,8 +540,10 @@ namespace Cross.Persistence.Core.Tests
             Assert.AreEqual(deleteStatementFormat, result.DeleteStatementFormat);
             Assert.AreEqual(endingRowNumberParameterName, result.EndingRowNumberParameterName);
             Assert.AreEqual(filters.Count, result.Filters.Count);
+            Assert.AreEqual(includeOrderByClauseFlag, result.IncludeOrderByClause);
             Assert.AreEqual(insertStatementFormat, result.InsertStatementFormat);
             Assert.AreEqual(parameterNameFormat, result.ParameterFormat);
+            Assert.AreEqual(requireSortOrder, result.RequireSortOrder);
             Assert.AreEqual(selectStatementFormat, result.SelectStatementFormat);
             Assert.AreEqual(sortOrder.Count, result.SortOrder.Count);
             Assert.AreEqual(startingRowNumberParameterName, result.StartingRowNumberParameterName);
@@ -745,6 +878,116 @@ namespace Cross.Persistence.Core.Tests
 
             // act
             var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildInsertCommand());
+
+            // assert 
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildSelectCommand_When_AvailableFields_Are_Not_Set()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                            .AddTableName("dbo.Applications");
+
+            var expectedMessage = "AvailableFields must be specified to build a SELECT command.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildSelectCommand());
+
+            // assert 
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildSelectCommand_When_Filters_Has_Invalid_Fields()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                         .AddFilters(new Dictionary<string, object>() { { "RollingID", Guid.NewGuid() }, { "Name", "Mine" } })
+                                         .AddSortOrder(new Dictionary<string, SortDirection>() { { "ApplicationID", SortDirection.Descending } });
+
+            var expectedMessage = "Filters contains the following invalid field names: RollingID, Name.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildSelectCommand());
+
+            // assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildSelectCommand_When_Filters_And_SortOrder_Have_Invalid_Fields()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                         .AddFilters(new Dictionary<string, object>() { { "XFiles1", "The Truth" }, { "XFiles2", "Is Out There" } })
+                                         .AddSortOrder(new Dictionary<string, SortDirection>() { { "RollingID", SortDirection.Descending }, { "Name", SortDirection.Ascending } });
+
+            var expectedMessage = "Filters contains the following invalid field names: XFiles1, XFiles2.\r\nSortOrder contains the following invalid field names: RollingID, Name.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildSelectCommand());
+
+            // assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildSelectCommand_When_SortOrder_Is_Not_Set()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                            .AddTableName("dbo.Applications")
+                                            .AddAvailableFields(new List<string>() { "ApplicationID", "Description" });
+
+            var expectedMessage = "SortOrder must be specified to build a SELECT command.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildSelectCommand());
+
+            // assert 
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildSelectCommand_When_SortOrder_Has_Invalid_Fields()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                         .AddFilters(new Dictionary<string, object>() { { "ApplicationID", Guid.NewGuid() } })
+                                         .AddSortOrder(new Dictionary<string, SortDirection>() { { "RollingID", SortDirection.Descending }, { "Name", SortDirection.Ascending } });
+
+            var expectedMessage = "SortOrder contains the following invalid field names: RollingID, Name.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildSelectCommand());
+
+            // assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildSelectCommand_When_TableName_Is_Not_Set()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                            .AddAvailableFields(new List<string>() { "ApplicationID", "Description" });
+            var expectedMessage = "TableName must be specified to build a SELECT command.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildSelectCommand());
 
             // assert 
             Assert.IsNotNull(result);

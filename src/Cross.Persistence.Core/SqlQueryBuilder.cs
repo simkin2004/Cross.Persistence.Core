@@ -74,6 +74,12 @@ namespace Cross.Persistence.Core
         public IDictionary<string, object> Filters { get; private set; } = new Dictionary<string, object>();
 
         /// <summary>
+        /// Gets the flag indicating whether or not the ORDER BY when constructing the SELECT command.
+        /// </summary>
+        /// <remarks>The default implementation (Microsoft SQL Server) does not require an ORDER BY clause in the SELECT statement.</remarks>
+        public virtual bool IncludeOrderByClause { get; private set; } = false;
+
+        /// <summary>
         /// Gets the SQL Statement format for INSERT statements.
         /// </summary>
         /// <remarks>
@@ -89,7 +95,13 @@ namespace Cross.Persistence.Core
         /// This class will use "@{0}" as the default value. Any database that does not support this parameter format should override this property.
         /// </remarks>
         public virtual string ParameterFormat { get; } = "@{0}";
-         
+
+        /// <summary>
+        /// Gets the flag indicating whether or not Sort Order is required when constructing the SELECT command.
+        /// </summary>
+        /// <remarks>The default implementation (Microsoft SQL Server) requires at least one sort order in the SELECT command.
+        public virtual bool RequireSortOrder { get; private set; } = true;
+
         /// <summary>
         /// 
         /// </summary>
@@ -102,7 +114,7 @@ namespace Cross.Persistence.Core
         /// <para>{5} is the Sort Order.</para>
         /// <para>Every row should include a parameter named 'row_count' with the total number of records in the overall set.</para>
         /// </remarks>
-        public virtual string SelectStatementFormat { get; } = "SELECT {1} FROM "
+        public virtual string SelectStatementFormat { get; } = "SELECT {1} FROM"
             + " (SELECT COUNT() as row_count, ROW_NUMBER() OVER({5}) AS row_no, {1} FROM {0}) as subSelect"
             + " WHERE subSelect.row_no >= {3} AND subSelect.row_num < {4}{2};";
 
@@ -264,7 +276,10 @@ namespace Cross.Persistence.Core
             return result;
         }
 
-        /*
+        /// <summary>
+        /// Builds a SELECT command that is ready for execution.
+        /// </summary>
+        /// <returns>A SELECT SQL command.</returns>
         public string BuildSelectCommand()
         {
             if (string.IsNullOrWhiteSpace(this.TableName))
@@ -274,7 +289,12 @@ namespace Cross.Persistence.Core
 
             if (this.AvailableFields.Count == 0)
             {
-                throw new InvalidOperationException("AvailableFields must be specified to build an SELECT command.");
+                throw new InvalidOperationException("AvailableFields must be specified to build a SELECT command.");
+            }
+
+            if (this.RequireSortOrder && this.SortOrder.Count == 0)
+            {
+                throw new InvalidOperationException("SortOrder must be specified to build a SELECT command.");
             }
 
             bool previousError = false;
@@ -283,7 +303,7 @@ namespace Cross.Persistence.Core
             
             if (invalidFields.Count() > 0)
             {
-                builder.AppendFormat(CultureInfo.CurrentUICulture, "Filters contains the following invalid field names: {0}.", string.Join(",", invalidFields));
+                builder.AppendFormat(CultureInfo.CurrentUICulture, "Filters contains the following invalid field names: {0}.", string.Join(", ", invalidFields));
                 previousError = true;
             }
 
@@ -294,7 +314,7 @@ namespace Cross.Persistence.Core
                 {
                     builder.Append("\r\n");
                 }
-                builder.AppendFormat(CultureInfo.CurrentUICulture, "SortOrder contains the following invalid field names: {0}.", string.Join(",", invalidSortFields));
+                builder.AppendFormat(CultureInfo.CurrentUICulture, "SortOrder contains the following invalid field names: {0}.", string.Join(", ", invalidSortFields));
                 previousError = true;
             }
 
@@ -312,8 +332,11 @@ namespace Cross.Persistence.Core
 
             return result;
         }
-        */
-
+       
+        /// <summary>
+        /// Builds an UPDATE SQL command that is ready for execution
+        /// </summary>
+        /// <returns>An UPDATE SQL command.</returns>
         public string BuildUpdateCommand()
         {
             if (string.IsNullOrWhiteSpace(this.TableName))
@@ -378,7 +401,7 @@ namespace Cross.Persistence.Core
             string firstFilterKey = this.Filters.Keys.First();
             foreach (string filter in this.Filters.Keys)
             {
-                if (firstFilterKey != filter) // || kind.HasFlag(ParameterListKind.IncludeLeadingAnd))
+                if (firstFilterKey != filter || kind.HasFlag(ParameterListKind.IncludeLeadingAnd))
                 {
                     builder.Append(" AND ");
                 }
@@ -391,7 +414,7 @@ namespace Cross.Persistence.Core
             return builder.ToString();
         }
 
-        /*
+        
         private string BuildSortOrder()
         {
             if (this.SortOrder == null || this.SortOrder.Count == 0)
@@ -400,7 +423,10 @@ namespace Cross.Persistence.Core
             }
 
             var builder = new StringBuilder();
-            builder.Append(" ORDER BY");
+            if (this.IncludeOrderByClause)
+            {
+                builder.Append(" ORDER BY ");
+            }
 
             var firstSortOrder = this.SortOrder.First();
             foreach (var sortOrder in this.SortOrder)
@@ -425,7 +451,7 @@ namespace Cross.Persistence.Core
 
             return builder.ToString();
         }
-        */
+        
 
         private string BuildUpdateFieldsList()
         {
