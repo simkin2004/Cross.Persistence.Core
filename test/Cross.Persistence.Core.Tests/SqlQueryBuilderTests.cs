@@ -192,6 +192,31 @@ namespace Cross.Persistence.Core.Tests
             Assert.AreEqual(expectedSql, result);
         }
 
+
+        [TestMethod]
+        public void Returns_SelectSqlStatement_From_BuildSelectCommand_With_Multiple_Filters_And_Multiple_Sort_Orders()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description", "Name", "CreatedBy" })
+                                         .AddFilters(new Dictionary<string, object>() { { "Name", "Trout" }, { "CreatedBy", "goofball@cross-software.us" } })
+                                         .AddSortOrder(new Dictionary<string, SortDirection>() { { "Description", SortDirection.Ascending }, { "CreatedBy", SortDirection.Descending } });
+
+
+            var expectedSql = "SELECT ApplicationID, Description, Name, CreatedBy FROM"
+                                    + " (SELECT COUNT() as row_count, ROW_NUMBER() OVER(Description ASC, CreatedBy DESC) AS row_no, ApplicationID, Description, Name, CreatedBy FROM dbo.Applications) as subSelect"
+                                    + " WHERE subSelect.row_no >= @startingRowNumber AND subSelect.row_num < @endingRowNumber"
+                                    + " AND Name = @name AND CreatedBy = @createdBy;";
+
+            // act
+            var result = sqlQueryBuilder.BuildSelectCommand();
+
+            // assert
+            Assert.AreEqual(expectedSql, result);
+        }
+
+        [TestMethod]
         public void Returns_SelectSqlStatement_From_SampleSqlQueryBuilder_BuildSelectCommand_Without_Filters_Or_SortOrder_Specified()
         {
             // arrange
@@ -201,6 +226,28 @@ namespace Cross.Persistence.Core.Tests
 
             var expectedSql = "SELECT COUNT() as row_count, ApplicationID, Description FROM dbo.Applications"
                                     + " WHERE row_no >= @startingRowNumber AND row_no < @endingRowNumber;";
+
+            // act
+            var result = sqlQueryBuilder.BuildSelectCommand();
+
+            // assert
+            Assert.AreEqual(expectedSql, result);
+        }
+
+        [TestMethod]
+        public void Returns_SelectSqlStatement_From_SampleSqlQueryBuilder_BuildSelectCommand_With_Multiple_SortOrder_Specified()
+        {
+            // arrange
+            var sqlQueryBuilder = new SampleSqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description", "Name" })
+                                         .AddFilters(new Dictionary<string, object>() { { "Description", "---Description---" } })
+                                         .AddSortOrder(new Dictionary<string, SortDirection>() { { "Description", SortDirection.Descending }, { "Name", SortDirection.Ascending } });
+
+
+            var expectedSql = "SELECT COUNT() as row_count, ApplicationID, Description, Name FROM dbo.Applications"
+                                    + " WHERE row_no >= @startingRowNumber AND row_no < @endingRowNumber AND Description = @description"
+                                    + " ORDER BY Description DESC, Name ASC;";
 
             // act
             var result = sqlQueryBuilder.BuildSelectCommand();
@@ -958,6 +1005,7 @@ namespace Cross.Persistence.Core.Tests
             Assert.IsNotNull(result);
             Assert.AreEqual(expectedMessage, result.Message);
         }
+
         [TestMethod]
         public void Throws_InvalidOperationException_From_BuildSelectCommand_When_SortOrder_Has_Invalid_Fields()
         {
