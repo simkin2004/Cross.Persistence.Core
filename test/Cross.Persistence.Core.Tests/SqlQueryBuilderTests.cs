@@ -135,7 +135,7 @@ namespace Cross.Persistence.Core.Tests
                                          .AddAvailableFields(new List<string>() { "ApplicationID", "Description" });
 
 
-            var expectedSql = "INSERT dbo.Applications (ApplicationID, Description) VALUES(@applicationID, @description);";
+            var expectedSql = "INSERT INTO dbo.Applications (ApplicationID, Description) VALUES (@applicationID, @description);";
 
             // act
             var result = sqlQueryBuilder.BuildInsertCommand();
