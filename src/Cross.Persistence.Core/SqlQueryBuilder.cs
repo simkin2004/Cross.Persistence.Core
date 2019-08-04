@@ -77,7 +77,7 @@ namespace Cross.Persistence.Core
         /// Gets the flag indicating whether or not the ORDER BY when constructing the SELECT command.
         /// </summary>
         /// <remarks>The default implementation (Microsoft SQL Server) does not require an ORDER BY clause in the SELECT statement.</remarks>
-        public virtual bool IncludeOrderByClause { get; private set; } = false;
+        public virtual bool IncludeOrderByClause { get; } = false;
 
         /// <summary>
         /// Gets the SQL Statement format for INSERT statements.
@@ -100,10 +100,10 @@ namespace Cross.Persistence.Core
         /// Gets the flag indicating whether or not Sort Order is required when constructing the SELECT command.
         /// </summary>
         /// <remarks>The default implementation (Microsoft SQL Server) requires at least one sort order in the SELECT command.
-        public virtual bool RequireSortOrder { get; private set; } = true;
+        public virtual bool RequireSortOrder { get; } = true;
 
         /// <summary>
-        /// 
+        /// Gets the format for the SELECT command.
         /// </summary>
         /// <remarks>
         /// <para>{0} is the Table Name.</para>
@@ -118,22 +118,39 @@ namespace Cross.Persistence.Core
             + " (SELECT COUNT() as row_count, ROW_NUMBER() OVER({5}) AS row_no, {1} FROM {0}) as subSelect"
             + " WHERE subSelect.row_no >= {3} AND subSelect.row_num < {4}{2};";
 
+        /// <summary>
+        /// Gets the fields and what direction it should be ordered.
+        /// </summary>
         public IDictionary<string, SortDirection> SortOrder { get; private set; } = new Dictionary<string, SortDirection>();
 
+        /// <summary>
+        /// Gets the name of the Starting Row Number Parameter.
+        /// </summary>
         public string StartingRowNumberParameterName { get; private set; } = "startingRowNumber";
 
+        /// <summary>
+        /// Gets the table name.
+        /// </summary>
         public string TableName { get; private set; }
 
+        /// <summary>
+        /// Gets the fields that will be updated in an UPDATE statement.
+        /// </summary>
         public IDictionary<string, object> UpdateFields { get; private set; } = new Dictionary<string, object>();
 
         /// <summary>
-        /// 
+        /// Gets the format for the UPDATE statement.
         /// </summary>
         /// <remarks>
         /// <para>{0} is the Table Name.</para>
         /// <para>{1} is the WHERE Clause (filters) without WHERE keyword or leading spaces.</para>
         public virtual string UpdateStatementFormat { get; } = "UPDATE {0} SET {1}{2};";
 
+        /// <summary>
+        /// Changes the fields that are available in this <see cref="TableName" />.
+        /// </summary>
+        /// <param name="availableFields">the fields available in this <see cref="TableName" />.</param>
+        /// <returns>A <see cref="SqlQueryBuilder" /> instance.</returns>
         public SqlQueryBuilder AddAvailableFields(IList<string> availableFields)
         {
             this.AvailableFields = availableFields ?? throw new ArgumentNullException(nameof(availableFields));
@@ -146,6 +163,11 @@ namespace Cross.Persistence.Core
             return this;
         }
 
+        /// <summary>
+        /// Changes the Ending Row Number Parameter Name.
+        /// </summary>
+        /// <param name="endingRowNumberParameterName">the name of the Ending Row Number parameter.</param>
+        /// <returns>A <see cref="SqlQueryBuilder" /> instance.</returns>
         public SqlQueryBuilder AddEndingRowNumberParameterName(string endingRowNumberParameterName)
         {
             this.EndingRowNumberParameterName = endingRowNumberParameterName ?? throw new ArgumentNullException(nameof(endingRowNumberParameterName));
@@ -158,6 +180,11 @@ namespace Cross.Persistence.Core
             return this;
         }
 
+        /// <summary>
+        /// Changes the filters for SELECT, UPDATE, and DELETE commands.
+        /// </summary>
+        /// <param name="filters">A list of fields and values that the SELECT, UPDATE, or DELETE command is using.</param>
+        /// <returns>A <see cref="SqlQueryBuilder" /> instance.</returns>
         public SqlQueryBuilder AddFilters(IDictionary<string, object> filters)
         {
             if (filters == null)
@@ -169,6 +196,11 @@ namespace Cross.Persistence.Core
             return this;
         }
 
+        /// <summary>
+        /// Changes the SortOrder for SELECT commands.
+        /// </summary>
+        /// <param name="sortOrder">A list of fields and the direction in which they will be sorted.</param>
+        /// <returns>A <see cref="SqlQueryBuilder" /> instance.</returns>
         public SqlQueryBuilder AddSortOrder(IDictionary<string, SortDirection> sortOrder)
         {
             if (sortOrder == null)
@@ -180,6 +212,11 @@ namespace Cross.Persistence.Core
             return this;
         }
 
+        /// <summary>
+        /// Changes the Starting Row Number Parameter in SELECT statements.
+        /// </summary>
+        /// <param name="startingRowNumberParameterName">the name of the starting row parameter.</param>
+        /// <returns>A <see cref="SqlQueryBuilder" /> instance.</returns>
         public SqlQueryBuilder AddStartingRowNumberParameterName(string startingRowNumberParameterName)
         {
             this.StartingRowNumberParameterName = startingRowNumberParameterName ?? throw new ArgumentNullException(nameof(startingRowNumberParameterName));
@@ -192,6 +229,11 @@ namespace Cross.Persistence.Core
             return this;
         }
 
+        /// <summary>
+        /// Changes the table name.
+        /// </summary>
+        /// <param name="tableName">the name of the table.</param>
+        /// <returns>A <see cref="SqlQueryBuilder" /> instance.</returns>
         public SqlQueryBuilder AddTableName(string tableName)
         {
             this.TableName = tableName ?? throw new ArgumentNullException(nameof(tableName));
@@ -204,6 +246,11 @@ namespace Cross.Persistence.Core
             return this;
         }
 
+        /// <summary>
+        /// Change the field values to be updated in the UPDATE command.
+        /// </summary>
+        /// <param name="updateFields">The field values to be updated.</param>
+        /// <returns>A <see cref="SqlQueryBuilder" /> instance.</returns>
         public SqlQueryBuilder AddUpdateFields(IDictionary<string, object> updateFields)
         {
             if (updateFields == null)
@@ -384,6 +431,11 @@ namespace Cross.Persistence.Core
             return result;
         }
 
+        /// <summary>
+        /// Build the parameter list for SELECT, UPDATE, DELETE, and INSERT commands.
+        /// </summary>
+        /// <param name="kind">Change behavior of the parameter lists.</param>
+        /// <returns>A list of string containing the parameters.</returns>
         private string BuildParameterList(ParameterListKind kind = ParameterListKind.Default)
         {
             if (this.Filters.Count == 0)
@@ -414,7 +466,10 @@ namespace Cross.Persistence.Core
             return builder.ToString();
         }
 
-        
+        /// <summary>
+        /// Build Sort Order phrases.
+        /// </summary>
+        /// <returns>A string representing the sort orders.</returns>
         private string BuildSortOrder()
         {
             if (this.SortOrder == null || this.SortOrder.Count == 0)
@@ -452,7 +507,10 @@ namespace Cross.Persistence.Core
             return builder.ToString();
         }
         
-
+        /// <summary>
+        /// Build the update field list for UPDATE commands.
+        /// </summary>
+        /// <returns>A list of fields that are being updated.</returns>
         private string BuildUpdateFieldsList()
         {
             var builder = new StringBuilder();
@@ -473,6 +531,11 @@ namespace Cross.Persistence.Core
             return builder.ToString();
         }
 
+        /// <summary>
+        /// Validates that <paramref name="fields"/> are part of <see cref="AvailableFields />.
+        /// </summary>
+        /// <param name="fields">the fields to be checked.</param>
+        /// <returns>A list of invalid field names.</returns>
         private IEnumerable<string> ValidateFields(ICollection<string> fields)
         {
             var results = fields.Where(x => !this.AvailableFields.Contains(x));
