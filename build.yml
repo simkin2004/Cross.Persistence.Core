@@ -7,7 +7,7 @@ variables:
   buildConfiguration: 'Release'
   major: '0'
   minor: '5'
-  iteration: '2'
+  iteration: '3'
 
 steps:
 - task: RegExMatchReplace@2
