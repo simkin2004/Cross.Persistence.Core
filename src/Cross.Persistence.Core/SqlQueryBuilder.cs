@@ -436,7 +436,7 @@ namespace Cross.Persistence.Core
             {
                 if (firstKey != filter)
                 {
-                    builder.Append(" AND ");
+                    builder.Append(", ");
                 }
 
                 builder.Append(filter);

@@ -421,7 +421,7 @@ namespace Cross.Persistence.Core.Tests
         }
 
         [TestMethod]
-        public void Returns_UpdateSqlStatement_From_BuildUpdateCommand()
+        public void Returns_UpdateSqlStatement_From_BuildUpdateCommand_With_One_Update_Field()
         {
             // arrange
             var sqlQueryBuilder = new SqlQueryBuilder()
@@ -432,6 +432,26 @@ namespace Cross.Persistence.Core.Tests
 
 
             var expectedSql = "UPDATE dbo.Applications SET Description = @description WHERE ApplicationID = @applicationID;";
+
+            // act
+            var result = sqlQueryBuilder.BuildUpdateCommand();
+
+            // assert
+            Assert.AreEqual(expectedSql, result);
+        }
+
+        [TestMethod]
+        public void Returns_UpdateSqlStatement_From_BuildUpdateCommand_With_Two_Update_Fields()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description", "Name" })
+                                         .AddUpdateFields(new Dictionary<string, object>() { { "Description", "Hi There!" }, { "Name", "Not here!" } })
+                                         .AddFilters(new Dictionary<string, object>() { { "ApplicationID", Guid.NewGuid() } });
+
+
+            var expectedSql = "UPDATE dbo.Applications SET Description = @description, Name = @name WHERE ApplicationID = @applicationID;";
 
             // act
             var result = sqlQueryBuilder.BuildUpdateCommand();
