@@ -312,15 +312,27 @@ namespace Cross.Persistence.Core
 
             return result;
         }
+        */
 
         public string BuildUpdateCommand()
         {
+            if (string.IsNullOrWhiteSpace(this.TableName))
+            {
+                throw new InvalidOperationException("TableName must be specified to build an UPDATE command.");
+            }
+
+            if (this.AvailableFields.Count == 0)
+            {
+                throw new InvalidOperationException("AvailableFields must be specified to build an UPDATE command.");
+            }
+
             var builder = new StringBuilder();
-            var invalidFields = this.ValidateFields(this.Filters.Keys);
             bool previousError = false;
+
+            var invalidFields = this.ValidateFields(this.Filters.Keys);
             if (invalidFields.Count() > 0)
             {
-                builder.AppendFormat(CultureInfo.CurrentUICulture, "Filters contains the following invalid field names: {0}.", string.Join(",", invalidFields));
+                builder.AppendFormat(CultureInfo.CurrentUICulture, "Filters contains the following invalid field names: {0}.", string.Join(", ", invalidFields));
                 previousError = true;
             }
 
@@ -331,7 +343,7 @@ namespace Cross.Persistence.Core
                 {
                     builder.Append("\r\n");
                 }
-                builder.AppendFormat(CultureInfo.CurrentUICulture, "UpdateFields contains the following invalid field names: {0}.", string.Join(",", invalidUpdateFields));
+                builder.AppendFormat(CultureInfo.CurrentUICulture, "UpdateFields contains the following invalid field names: {0}.", string.Join(", ", invalidUpdateFields));
                 previousError = true;
             }
 
@@ -340,15 +352,14 @@ namespace Cross.Persistence.Core
                 throw new InvalidOperationException(builder.ToString());
             }
 
-            string filter = BuildParameterList(ParameterListKind.IncludeWhereClause);
+            string filter = this.BuildParameterList(ParameterListKind.IncludeWhereClause);
 
-            string updateFields = BuildUpdateFieldsList(ParameterListKind.Default);
+            string updateFields = this.BuildUpdateFieldsList();
 
             string result = string.Format(CultureInfo.CurrentCulture, this.UpdateStatementFormat, this.TableName, updateFields, filter);
 
             return result;
         }
-        */
 
         private string BuildParameterList(ParameterListKind kind = ParameterListKind.Default)
         {
@@ -414,32 +425,27 @@ namespace Cross.Persistence.Core
 
             return builder.ToString();
         }
+        */
 
-        private string BuildUpdateFieldsList(ParameterListKind kind = ParameterListKind.Default)
+        private string BuildUpdateFieldsList()
         {
             var builder = new StringBuilder();
-
-            if (kind.HasFlag(ParameterListKind.IncludeWhereClause))
-            {
-                builder.Append(" WHERE");
-            }
 
             string firstKey = this.UpdateFields.Keys.First();
             foreach (string filter in this.UpdateFields.Keys)
             {
-                if (firstKey != filter || kind.HasFlag(ParameterListKind.IncludeLeadingAnd))
+                if (firstKey != filter)
                 {
                     builder.Append(" AND ");
                 }
 
                 builder.Append(filter);
-                builder.Append("=");
-                builder.Append(string.Format(CultureInfo.CurrentCulture, this.ParameterFormat, filter));
+                builder.Append(" = ");
+                builder.Append(string.Format(CultureInfo.CurrentCulture, this.ParameterFormat, filter.ToCamelCase()));
             }
 
             return builder.ToString();
         }
-        */
 
         private IEnumerable<string> ValidateFields(ICollection<string> fields)
         {

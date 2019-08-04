@@ -421,6 +421,26 @@ namespace Cross.Persistence.Core.Tests
         }
 
         [TestMethod]
+        public void Returns_UpdateSqlStatement_From_BuildUpdateCommand()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                         .AddUpdateFields(new Dictionary<string, object>() { { "Description", "Hi There!" } })
+                                         .AddFilters(new Dictionary<string, object>() { { "ApplicationID", Guid.NewGuid() } });
+
+
+            var expectedSql = "UPDATE dbo.Applications SET Description = @description WHERE ApplicationID = @applicationID;";
+
+            // act
+            var result = sqlQueryBuilder.BuildUpdateCommand();
+
+            // assert
+            Assert.AreEqual(expectedSql, result);
+        }
+
+        [TestMethod]
         public void Throws_ArgumentNullException_From_AddAvailableFields_When_AvailableFields_Is_Null()
         {
             // arrange
@@ -711,7 +731,100 @@ namespace Cross.Persistence.Core.Tests
             Assert.AreEqual(expectedMessage, result.Message);
         }
 
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildUpdateCommand_When_AvailableFields_Are_Not_Set()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                            .AddTableName("dbo.Applications");
 
+            var expectedMessage = "AvailableFields must be specified to build an UPDATE command.";
 
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildUpdateCommand());
+
+            // assert 
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildUpdateCommand_When_Filters_And_UpdateFields_Have_Invalid_Fields()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                         .AddUpdateFields(new Dictionary<string, object>() { { "XFiles1", "The Truth" }, { "XFiles2", "Is Out There" } })
+                                         .AddFilters(new Dictionary<string, object>() { { "RollingID", Guid.NewGuid() }, { "Name", "Mine" } });
+
+            var expectedMessage = "Filters contains the following invalid field names: RollingID, Name.\r\nUpdateFields contains the following invalid field names: XFiles1, XFiles2.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildUpdateCommand());
+
+            // assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildUpdateCommand_When_Filters_Has_Invalid_Fields()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                         .AddUpdateFields(new Dictionary<string, object>() { { "Description", "Hi There!" } })
+                                         .AddFilters(new Dictionary<string, object>() { { "RollingID", Guid.NewGuid() }, { "Name", "Mine" } });
+
+            var expectedMessage = "Filters contains the following invalid field names: RollingID, Name.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildUpdateCommand());
+
+            // assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildUpdateCommand_When_UpdateFields_Has_Invalid_Fields()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                         .AddUpdateFields(new Dictionary<string, object>() { { "Name", "Hi There!" }, { "Count", 100 } })
+                                         .AddFilters(new Dictionary<string, object>() { { "ApplicationID", Guid.NewGuid() }, { "Description", "Mine" } });
+
+            var expectedMessage = "UpdateFields contains the following invalid field names: Name, Count.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildUpdateCommand());
+
+            // assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildUpdateCommand_When_TableName_Is_Not_Set()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                            .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                            .AddFilters(new Dictionary<string, object>() { { "ApplicationID", Guid.NewGuid() } })
+                                            .AddUpdateFields(new Dictionary<string, object>() { { "Description", "Mine" } });
+
+            var expectedMessage = "TableName must be specified to build an UPDATE command.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildUpdateCommand());
+
+            // assert 
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
     }
 }
