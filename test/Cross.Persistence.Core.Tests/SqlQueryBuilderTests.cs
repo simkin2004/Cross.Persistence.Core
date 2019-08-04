@@ -25,7 +25,7 @@
 
 namespace Cross.Persistence.Core.Tests
 {
-    using Cross.BuildingBlocks.Core;
+    using Cross.Core;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using System;
     using System.Collections.Generic;
@@ -70,6 +70,61 @@ namespace Cross.Persistence.Core.Tests
             Assert.AreEqual(tableName, result.TableName);
             Assert.AreEqual(updateFields.Count, result.UpdateFields.Count);
             Assert.AreEqual(updateStatementFormat, result.UpdateStatementFormat);
+        }
+
+        [TestMethod]
+        public void Returns_DeleteSqlStatement_From_BuildDeleteCommand_With_No_Filter()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" });
+
+
+            var expectedSql = "DELETE FROM dbo.Applications;";
+
+            // act
+            var result = sqlQueryBuilder.BuildDeleteCommand();
+
+            // assert
+            Assert.AreEqual(expectedSql, result);
+        }
+
+        [TestMethod]
+        public void Returns_DeleteSqlStatement_From_BuildDeleteCommand_With_Multiple_Filters()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                         .AddFilters(new Dictionary<string, object>() { { "ApplicationID", Guid.NewGuid() }, { "Description", "Hi There!" } });
+
+            var expectedSql = "DELETE FROM dbo.Applications WHERE ApplicationID = @applicationID AND Description = @description;";
+
+            // act
+            var result = sqlQueryBuilder.BuildDeleteCommand();
+
+            // assert
+            Assert.AreEqual(expectedSql, result);
+        }
+
+
+        [TestMethod]
+        public void Returns_DeleteSqlStatement_From_BuildDeleteCommand_With_One_Filter()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                         .AddTableName("dbo.Applications")
+                                         .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                         .AddFilters(new Dictionary<string, object>() { { "ApplicationID", Guid.NewGuid() } });
+
+            var expectedSql = "DELETE FROM dbo.Applications WHERE ApplicationID = @applicationID;";
+
+            // act
+            var result = sqlQueryBuilder.BuildDeleteCommand();
+
+            // assert
+            Assert.AreEqual(expectedSql, result);
         }
 
         [TestMethod]
@@ -552,6 +607,41 @@ namespace Cross.Persistence.Core.Tests
             // assert
             Assert.IsNotNull(result);
             Assert.AreEqual(expectedParamName, result.ParamName);
+        }
+
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildDeleteCommand_When_Filters_Has_Invalid_Field_Names()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                            .AddTableName("dbo.Applications")
+                                            .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                            .AddFilters(new Dictionary<string, object>() { { "RollingID", Guid.NewGuid() }, { "Name", "YourName" } });
+            var expectedMessage = "Filters contains the following invalid field names: RollingID, Name.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildDeleteCommand());
+
+            // assert 
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
+        }
+
+        [TestMethod]
+        public void Throws_InvalidOperationException_From_BuildDeleteCommand_When_TableName_Is_Not_Set()
+        {
+            // arrange
+            var sqlQueryBuilder = new SqlQueryBuilder()
+                                            .AddAvailableFields(new List<string>() { "ApplicationID", "Description" })
+                                            .AddFilters(new Dictionary<string, object>() { { "ApplicationID", Guid.NewGuid() } });
+            var expectedMessage = "TableName must be specified to build a DELETE command.";
+
+            // act
+            var result = Assert.ThrowsException<InvalidOperationException>(() => sqlQueryBuilder.BuildDeleteCommand());
+
+            // assert 
+            Assert.IsNotNull(result);
+            Assert.AreEqual(expectedMessage, result.Message);
         }
 
     }

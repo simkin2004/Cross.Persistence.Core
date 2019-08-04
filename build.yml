@@ -50,7 +50,7 @@ steps:
     command: 'restore'
     restoreSolution: '**/*.sln'
     feedsToUse: 'select'
-    vstsFeed: 'feeea873-be5b-477a-a731-ddd23cb588f6'
+    vstsFeed: 'ce0f3311-c3c5-4df1-b81a-19bd048c0314'
     
 - script: dotnet build --configuration $(buildConfiguration)
   displayName: 'dotnet build $(buildConfiguration)'

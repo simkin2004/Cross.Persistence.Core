@@ -25,7 +25,8 @@
 
 namespace Cross.Persistence.Core
 {
-    using Cross.BuildingBlocks.Core;
+    using Cross.Core;
+    using Cross.Core.Extensions;
     using System;
     using System.Collections.Generic;
     using System.Globalization;
@@ -207,7 +208,7 @@ namespace Cross.Persistence.Core
             return this;
         }
 
-        /*
+        
         public string BuildDeleteCommand()
         {
             if (string.IsNullOrWhiteSpace(this.TableName))
@@ -219,9 +220,8 @@ namespace Cross.Persistence.Core
 
             if (invalidFields.Count() > 0)
             {
-                throw new InvalidOperationException(string.Format(CultureInfo.CurrentUICulture, "Filters contains the following invalid field names: {0}", string.Join(",", invalidFields)));
+                throw new InvalidOperationException(string.Format(CultureInfo.CurrentUICulture, "Filters contains the following invalid field names: {0}.", string.Join(", ", invalidFields)));
             }
-
 
             string filters = this.BuildParameterList(ParameterListKind.IncludeWhereClause);
 
@@ -229,7 +229,8 @@ namespace Cross.Persistence.Core
 
             return result;
         }
-
+        
+        /*
         public string BuildInsertCommand()
         {
             if (string.IsNullOrWhiteSpace(this.TableName))
@@ -335,10 +336,11 @@ namespace Cross.Persistence.Core
 
             return result;
         }
+        */
 
         private string BuildParameterList(ParameterListKind kind = ParameterListKind.Default)
         {
-            if (this.Filters == null || this.Filters.Count == 0)
+            if (this.Filters.Count == 0)
             {
                 return string.Empty;
             }
@@ -347,25 +349,26 @@ namespace Cross.Persistence.Core
 
             if (kind.HasFlag(ParameterListKind.IncludeWhereClause))
             {
-                builder.Append(" WHERE");
+                builder.Append(" WHERE ");
             }
 
             string firstFilterKey = this.Filters.Keys.First();
             foreach (string filter in this.Filters.Keys)
             {
-                if (firstFilterKey != filter || kind.HasFlag(ParameterListKind.IncludeLeadingAnd))
+                if (firstFilterKey != filter) // || kind.HasFlag(ParameterListKind.IncludeLeadingAnd))
                 {
                     builder.Append(" AND ");
                 }
 
                 builder.Append(filter);
-                builder.Append("=");
-                builder.Append(string.Format(CultureInfo.CurrentCulture, this.ParameterFormat, filter));
+                builder.Append(" = ");
+                builder.Append(string.Format(CultureInfo.CurrentCulture, this.ParameterFormat, filter.ToCamelCase()));
             }
 
             return builder.ToString();
         }
 
+        /*
         private string BuildSortOrder()
         {
             if (this.SortOrder == null || this.SortOrder.Count == 0)
@@ -424,6 +427,7 @@ namespace Cross.Persistence.Core
 
             return builder.ToString();
         }
+        */
 
         private IEnumerable<string> ValidateFields(ICollection<string> fields)
         {
@@ -431,6 +435,5 @@ namespace Cross.Persistence.Core
 
             return results;
         }
-        */
     }
 }
